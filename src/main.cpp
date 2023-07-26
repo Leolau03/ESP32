@@ -15,6 +15,9 @@ int sensorPin = 32;   // select the input pin for the potentiometer
 int sensorValue = 0;  // variable to store the value coming from the sensor
 float volt;
 
+//Your Domain name with URL path or IP address with path
+String serverName = "https://f93a-2620-101-f000-700-6ed-3f3f-2b56-fd40.ngrok-free.app/";
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(921600);
@@ -59,10 +62,32 @@ void loop() {
   //if the connection to the stongest hotstop is lost, it will connect to the next network on the list
   if (wifiMulti.run(connectTimeoutMs) == WL_CONNECTED) {
     Serial.print("WiFi connected: ");
-    Serial.print(WiFi.SSID());
-    Serial.print(" ");
-    Serial.println(WiFi.RSSI());
-  }
+    HTTPClient http;
+
+      String serverPath = serverName;
+      
+      // Your Domain name with URL path or IP address with path
+      http.begin(serverPath.c_str());
+      
+      // If you need Node-RED/server authentication, insert user and password below
+      //http.setAuthorization("REPLACE_WITH_SERVER_USERNAME", "REPLACE_WITH_SERVER_PASSWORD");
+      
+      // Send HTTP GET request
+      int httpResponseCode = http.GET();
+      
+      if (httpResponseCode>0) {
+        Serial.print("HTTP Response code: ");
+        Serial.println(httpResponseCode);
+        String payload = http.getString();
+        Serial.println(payload);
+      }
+      else {
+        Serial.print("Error code: ");
+        Serial.println(httpResponseCode);
+      }
+      // Free resources
+      http.end();
+    }
   else {
     Serial.println("WiFi not connected!");
   }
