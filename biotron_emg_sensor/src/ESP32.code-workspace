@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "ESP32",
+			"path": "../.."
+		},
+		{
+			"name": "biotron_emg_sensor",
+			"path": ".."
+		}
+	],
+	"settings": {}
+}
