@@ -2,14 +2,13 @@
 #include <WiFi.h>
 #include <WiFiMulti.h>
 #include <HTTPClient.h>
-#include <WebSocketsServer.h>
+#include <WebSocketsClient.h>
 
-const char* WIFI_SSID = "iPhone (94)";
-const char* WIFI_PASSWORD = "leoESP32";
-const int webSocketPort = 81; // Choose a port for the WebSocket server (not 80 as we use for the web server)
+const char* WIFI_SSID = "iPhone (94)"; // Change with wifi name
+const char* WIFI_PASSWORD = "leoESP32"; // Change with wifi password
+const char* serverAddress = "053f-2620-101-f000-700-3fff-fffb-2b56-fd40.ngrok-free.app"; // Replace with your computer's IP address or hostname
 
-WiFiServer server(80);
-WebSocketsServer webSocket = WebSocketsServer(webSocketPort);
+WebSocketsClient webSocket;
 
 int sensorPin = 32;   // select the input pin for the potentiometer      
 int sensorValue = 0;  // variable to store the value coming from the sensor
@@ -17,13 +16,13 @@ float volt;
 
 
 
-void handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
+void handleWebSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
   switch (type) {
     case WStype_DISCONNECTED:
-      Serial.printf("WebSocket client %u disconnected\n", num);
+      Serial.printf("WebSocket client %u disconnected\n");
       break;
     case WStype_CONNECTED:
-      Serial.printf("WebSocket client %u connected\n", num);
+      Serial.printf("WebSocket client %u connected\n");
       break;
     case WStype_TEXT:
       // Handle data received from the WebSocket client
@@ -62,12 +61,11 @@ void setup() {
   }
   Serial.println("Connected to WiFi");
 
-  // Starting websocket
-  server.begin();
-  webSocket.begin();
-  webSocket.onEvent(handleWebSocketEvent);
+  // Connect to WebSocket server
+  webSocket.begin(serverAddress);
+  webSocket.onEvent(onWebSocketEvent);
   
-  Serial.printf("WebSocket server started on port %d\n", webSocketPort);
+  Serial.println("Connecting to WebSocket server...");
   }
 
 
