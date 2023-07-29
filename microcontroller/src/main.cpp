@@ -2,99 +2,82 @@
 #include <WiFi.h>
 #include <WiFiMulti.h>
 #include <HTTPClient.h>
+#include <WebSocketsServer.h>
 
-#define WIFI_SSID "iPhone (94)"
-#define WIFI_PASSWORD "leoESP32"
+const char* WIFI_SSID = "iPhone (94)";
+const char* WIFI_PASSWORD = "leoESP32";
+const int webSocketPort = 81; // Choose a port for the WebSocket server (not 80 as we use for the web server)
 
-WiFiMulti wifiMulti;
+WiFiServer server(80);
+WebSocketsServer webSocket = WebSocketsServer(webSocketPort);
 
-// WiFi connect timeout per AP. Increase when connecting takes longer.
-
-const uint32_t connectTimeoutMs = 10000;
 int sensorPin = 32;   // select the input pin for the potentiometer      
 int sensorValue = 0;  // variable to store the value coming from the sensor
 float volt;
 
-//Your Domain name with URL path or IP address with path
-String serverName = "https://f93a-2620-101-f000-700-6ed-3f3f-2b56-fd40.ngrok-free.app/";
+
+
+void handleWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
+  switch (type) {
+    case WStype_DISCONNECTED:
+      Serial.printf("WebSocket client %u disconnected\n", num);
+      break;
+    case WStype_CONNECTED:
+      Serial.printf("WebSocket client %u connected\n", num);
+      break;
+    case WStype_TEXT:
+      // Handle data received from the WebSocket client
+      // 'payload' is a char array containing the received data
+      // 'length' is the length of the received data
+      break;
+    case WStype_BIN:
+      // Handle binary data received from the WebSocket client (if needed)
+      break;
+    case WStype_PING:
+      // Handle PING messages (if desired)
+      break;
+    case WStype_PONG:
+      // Handle PONG messages (if desired)
+      break;
+    case WStype_ERROR:
+      // Handle errors (if desired)
+      break;
+  }
+}
+
+void sendValue(int value) {
+  String jsonPayload = "{\"value\": " + String(value) + "}";
+  webSocket.sendTXT(0, jsonPayload);
+}
 
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(921600);
-  WiFi.mode(WIFI_STA);
   
-  // Add list of wifi networks
-  wifiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
+  // Connects to wifi
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("Connecting to WiFi...");
+  }
+  Serial.println("Connected to WiFi");
 
-  // WiFi.scanNetworks will return the number of networks found
-  int n = WiFi.scanNetworks();
-  Serial.println("scan done");
-  if (n == 0) {
-      Serial.println("no networks found");
-  } 
-  else {
-    Serial.print(n);
-    Serial.println(" networks found");
-    for (int i = 0; i < n; ++i) {
-      // Print SSID and RSSI for each network found
-      Serial.print(i + 1);
-      Serial.print(": ");
-      Serial.print(WiFi.SSID(i));
-      Serial.print(" (");
-      Serial.print(WiFi.RSSI(i));
-      Serial.print(")");
-      Serial.println((WiFi.encryptionType(i) == WIFI_AUTH_OPEN)?" ":"*");
-      delay(10);
-    }
+  // Starting websocket
+  server.begin();
+  webSocket.begin();
+  webSocket.onEvent(handleWebSocketEvent);
+  
+  Serial.printf("WebSocket server started on port %d\n", webSocketPort);
   }
 
-  // Connect to Wi-Fi using wifiMulti (connects to the SSID with strongest connection)
-  Serial.println("Connecting Wifi...");
-  if(wifiMulti.run() == WL_CONNECTED) {
-    Serial.println("");
-    Serial.println("WiFi connected");
-    Serial.println("IP address: ");
-    Serial.println(WiFi.localIP());
-  }
-}
 
 void loop() {
-  //if the connection to the stongest hotstop is lost, it will connect to the next network on the list
-  if (wifiMulti.run(connectTimeoutMs) == WL_CONNECTED) {
-    Serial.print("WiFi connected: ");
-    HTTPClient http;
 
-      String serverPath = serverName;
-      
-      // Your Domain name with URL path or IP address with path
-      http.begin(serverPath.c_str());
-      
-      // If you need Node-RED/server authentication, insert user and password below
-      //http.setAuthorization("REPLACE_WITH_SERVER_USERNAME", "REPLACE_WITH_SERVER_PASSWORD");
-      
-      // Send HTTP GET request
-      int httpResponseCode = http.GET();
-      
-      if (httpResponseCode>0) {
-        Serial.print("HTTP Response code: ");
-        Serial.println(httpResponseCode);
-        String payload = http.getString();
-        Serial.println(payload);
-      }
-      else {
-        Serial.print("Error code: ");
-        Serial.println(httpResponseCode);
-      }
-      // Free resources
-      http.end();
-    }
-  else {
-    Serial.println("WiFi not connected!");
-  }
-  delay(1000);
-
+  webSocket.loop();
   sensorValue = analogRead(sensorPin);
   volt = sensorValue*5/1023.0;
+  sendValue(volt);
   Serial.println( volt );
+
 }
 
